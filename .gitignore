@@ -1,0 +1,8 @@
+sim/build/
+sim/logs/
+sim/waves/
+*.vcd
+*.fst
+*.out
+work/
+transcript
