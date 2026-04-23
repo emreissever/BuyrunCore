@@ -14,13 +14,13 @@ module mem_stage (
     input wire [31:0]               ex_mem_pc_i         ,
     input wire [31:0]               ex_mem_pcplus_i     ,
 
-    output wire [`CONTROL_BIT-1:0]  mem_wb_ctrl_o       ,
-    output wire [31:0]              mem_wb_alu_result_o ,
-    output wire [31:0]              mem_wb_read_data_o  ,
-    output wire [ 4:0]              mem_wb_rd_addr_o    ,
-    output wire [31:0]              mem_wb_pc_o         ,
-    output wire [31:0]              mem_wb_pcplus_o     
-
+    output reg [31:0]               mem_wb_instr_o      ,
+    output reg [`CONTROL_BIT-1:0]   mem_wb_ctrl_o       ,
+    output reg [31:0]               mem_wb_alu_result_o ,
+    output reg [31:0]               mem_wb_read_data_o  ,
+    output reg [ 4:0]               mem_wb_rd_addr_o    ,
+    output reg [31:0]               mem_wb_pc_o         ,
+    output reg [31:0]               mem_wb_pcplus_o     
 );
 
 wire mem_enable = ex_mem_ctrl_i[7];   // MEMACC bit[4]
@@ -50,13 +50,24 @@ always @(*) begin
         read_data_r = 32'b0;
 end
 
-
-assign mem_wb_ctrl_o       = ex_mem_ctrl_i;
-assign mem_wb_alu_result_o = ex_mem_alu_result_i;
-assign mem_wb_read_data_o  = read_data_r;
-assign mem_wb_rd_addr_o    = ex_mem_rd_addr_i;
-assign mem_wb_pc_o         = ex_mem_pc_i;
-assign mem_wb_pcplus_o     = ex_mem_pcplus_i;
-
+always @(posedge clk_i) begin
+    if (rst_i) begin
+        mem_wb_instr_o      <= `I_NOP                ;
+        mem_wb_ctrl_o       <= `CONTROL_NOP          ;
+        mem_wb_alu_result_o <= 32'b0                 ;
+        mem_wb_read_data_o  <= 32'b0                 ;
+        mem_wb_rd_addr_o    <= 5'b0                  ;
+        mem_wb_pc_o         <= 32'b0                 ;
+        mem_wb_pcplus_o     <= 32'b0                 ; 
+    end else begin
+        mem_wb_instr_o      <= ex_mem_instr_i        ;
+        mem_wb_ctrl_o       <= ex_mem_ctrl_i         ;
+        mem_wb_alu_result_o <= ex_mem_alu_result_i   ;
+        mem_wb_read_data_o  <= read_data_r           ;
+        mem_wb_rd_addr_o    <= ex_mem_rd_addr_i      ;
+        mem_wb_pc_o         <= ex_mem_pc_i           ;
+        mem_wb_pcplus_o     <= ex_mem_pcplus_i       ;
+    end 
+end
     
 endmodule

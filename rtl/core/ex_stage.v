@@ -1,29 +1,30 @@
 `include "../include/rv32i_defs.vh"
 
 module ex_stage (
+    input   wire                    clk_i               ,
+    input   wire                    rst_i               ,
 
-input wire [31:0]               id_ex_instr_i       ,
-input wire [`CONTROL_BIT-1:0]   id_ex_ctrl_i        ,
-input wire [31:0]               id_ex_rs1_i         ,
-input wire [31:0]               id_ex_rs2_i         ,
-input wire [31:0]               id_ex_imm_i         ,
+    input wire [31:0]               id_ex_instr_i       ,
+    input wire [`CONTROL_BIT-1:0]   id_ex_ctrl_i        ,
+    input wire [31:0]               id_ex_rs1_i         ,
+    input wire [31:0]               id_ex_rs2_i         ,
+    input wire [31:0]               id_ex_imm_i         ,
 
-input wire [ 4:0]               id_ex_rd_addr_i     ,
-input wire [31:0]               id_ex_pc_i          ,
-input wire [31:0]               id_ex_pcplus_i      ,
+    input wire [ 4:0]               id_ex_rd_addr_i     ,
+    input wire [31:0]               id_ex_pc_i          ,
+    input wire [31:0]               id_ex_pcplus_i      ,
 
-output wire [31:0]              ex_mem_instr_o      ,
-output wire [`CONTROL_BIT-1:0]  ex_mem_ctrl_o       ,
-output wire [31:0]              ex_mem_alu_result_o ,
-output wire [31:0]              ex_mem_rs2_o        ,
+    output reg [31:0]               ex_mem_instr_o      ,
+    output reg [`CONTROL_BIT-1:0]   ex_mem_ctrl_o       ,
+    output reg [31:0]               ex_mem_alu_result_o ,
+    output reg [31:0]               ex_mem_rs2_o        ,
 
-output wire [ 4:0]              ex_mem_rd_addr_o    ,
-output wire [31:0]              ex_mem_pc_o         ,
-output wire [31:0]              ex_mem_pcplus_o     ,
+    output reg [ 4:0]               ex_mem_rd_addr_o    ,
+    output reg [31:0]               ex_mem_pc_o         ,
+    output reg [31:0]               ex_mem_pcplus_o     ,
 
-output wire                     ex_if_br_taken_o    ,
-output wire [31:0]              ex_if_br_addr_o     
-
+    output reg                      ex_if_br_taken_o    ,
+    output reg [31:0]               ex_if_br_addr_o     
 );
 
 reg  [31:0] operand1_r      ;
@@ -85,22 +86,32 @@ always @(*) begin
     endcase 
 end 
 
-// Generated Assigments 
+// EX/MEM Pipeline Registers // 
 
-assign ex_mem_alu_result_o  = alu_result_w;
-assign ex_if_br_addr_o      = alu_result_w;
-assign ex_if_br_taken_o     = branch_taken_r;
+always @(posedge clk_i) begin
+    if (rst_i) begin
+        ex_mem_instr_o      <= `I_NOP           ;
+        ex_mem_ctrl_o       <= `CONTROL_NOP     ;
+        ex_mem_alu_result_o <= 32'b0            ;
+        ex_mem_rs2_o        <= 32'b0            ;
+        ex_mem_rd_addr_o    <= 5'b0             ;
+        ex_mem_pc_o         <= 32'b0            ;
+        ex_mem_pcplus_o     <= 32'b0            ;
 
-// Assigments 
+        ex_if_br_addr_o     <= 32'b0            ;
+        ex_if_br_taken_o    <= 1'b0             ;
+    end else begin
+        ex_mem_instr_o      <= id_ex_instr_i    ;
+        ex_mem_ctrl_o       <= id_ex_ctrl_i     ;
+        ex_mem_alu_result_o <= alu_result_w     ;
+        ex_mem_rs2_o        <= alu_result_w     ;
+        ex_mem_rd_addr_o    <= id_ex_rd_addr_i  ;
+        ex_mem_pc_o         <= id_ex_pc_i       ;
+        ex_mem_pcplus_o     <= id_ex_pcplus_i   ;
 
-assign ex_mem_instr_o      = id_ex_instr_i;
-assign ex_mem_ctrl_o       = id_ex_ctrl_i;
-assign ex_mem_alu_result_o = alu_result_w;
-assign ex_mem_rd_addr_o    = id_ex_rd_addr_i;
-assign ex_mem_pc_o         = id_ex_pc_i;
-assign ex_mem_pcplus_o     = id_ex_pcplus_i;
+        ex_if_br_addr_o     <= alu_result_w     ;
+        ex_if_br_taken_o    <= branch_taken_r   ;
+    end 
+end
 
-assign ex_if_br_addr_o     = alu_result_w;
-assign ex_if_br_taken_o    = branch_taken_r;
-
-endmodule; 
+endmodule

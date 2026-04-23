@@ -4,22 +4,22 @@ module id_stage (
     input wire                      clk_i               ,
     input wire                      rst_i               ,
 
-    input wire [31:0]               if_id_instr         ,
-    input wire [31:0]               if_id_pc            ,
-    input wire [31:0]               if_id_pcplus        ,
+    input wire [31:0]               if_id_instr_i       ,
+    input wire [31:0]               if_id_pc_i          ,
+    input wire [31:0]               if_id_pcplus_i      ,
 
-    output wire [31:0]              id_ex_instr_o       ,
-    output wire [`CONTROL_BIT-1:0]  id_ex_ctrl_o        ,
-    output wire [31:0]              id_ex_rs1_o         ,
-    output wire [31:0]              id_ex_rs2_o         ,
-    output wire [31:0]              id_ex_imm_o         ,
+    output reg [31:0]               id_ex_instr_o       ,
+    output reg [`CONTROL_BIT-1:0]   id_ex_ctrl_o        ,
+    output reg [31:0]               id_ex_rs1_o         ,
+    output reg [31:0]               id_ex_rs2_o         ,
+    output reg [31:0]               id_ex_imm_o         ,
 
-    output wire [ 4:0]              id_ex_rd_addr_o     ,
-    output wire [31:0]              id_ex_pc_o          ,
-    output wire [31:0]              id_ex_pcplus_o      ,
+    output reg [ 4:0]               id_ex_rd_addr_o     ,
+    output reg [31:0]               id_ex_pc_o          ,
+    output reg [31:0]               id_ex_pcplus_o      ,
 
-    input wire  [ 4:0]              wb_id_rd_addr_i     ,
-    input wire  [31:0]              wb_id_rd_i          ,
+    input wire [ 4:0]               wb_id_rd_addr_i     ,
+    input wire [31:0]               wb_id_rd_i          ,
     input wire                      wb_id_rd_en_i       
 );
 
@@ -32,12 +32,12 @@ reg     [`CONTROL_BIT-1:0]      ctrl_signal_r   ;
 wire    [31:0]                  rs1_w           ;
 wire    [31:0]                  rs2_w           ;
 
-base_regfile regfile_id
+base_regfile u_regfile
 (
    .clk_i       (clk_i)                     ,
    .rst_i       (rst_i)                     ,
-   .rs1_addr_i  (if_id_instr[19:15])        ,
-   .rs2_addr_i  (if_id_instr[24:20])        ,
+   .rs1_addr_i  (if_id_instr_i[19:15])      ,
+   .rs2_addr_i  (if_id_instr_i[24:20])      ,
    .rs1_data_o  (rs1_w)                     ,
    .rs2_data_o  (rs2_w)                     ,
    .rd_addr_i   (wb_id_rd_addr_i)           ,
@@ -46,9 +46,9 @@ base_regfile regfile_id
 );
 
 assign decode_inst_w = {
-    if_id_instr[`CTRL_SIGN]     ,
-    if_id_instr[`CTRL_FUNCT3]   ,
-    if_id_instr[`CTRL_OPCODE5]
+    if_id_instr_i[`CTRL_SIGN]     ,
+    if_id_instr_i[`CTRL_FUNCT3]   ,
+    if_id_instr_i[`CTRL_OPCODE5]
 };
 
 always @(*) begin
@@ -110,24 +110,37 @@ J (JALR) Type  = 11001
 
 always @(*) begin
     case (instr_type_r)
-        `I_TYPE  : begin immediate_r = { {21{if_id_instr[31]}}, if_id_instr[30:25], if_id_instr[24:21], if_id_instr[20]                                   };    end 
-        `S_TYPE  : begin immediate_r = { {21{if_id_instr[31]}}, if_id_instr[30:25], if_id_instr[11:8] , if_id_instr[7]                                    };    end 
-        `B_TYPE  : begin immediate_r = { {20{if_id_instr[31]}}, if_id_instr[7]    , if_id_instr[30:25], if_id_instr[11:8], {1{1'b0}}                      };    end 
-        `U_TYPE  : begin immediate_r = {     if_id_instr[31]  , if_id_instr[30:20], if_id_instr[19:12], {12{1'b0}}                                        };    end 
-        `J_TYPE  : begin immediate_r = { {12{if_id_instr[31]}}, if_id_instr[19:12], if_id_instr[20]   , if_id_instr[30:25], if_id_instr[24:21], {1{1'b0}} };    end 
+        `I_TYPE  : begin immediate_r = { {21{if_id_instr_i[31]}}, if_id_instr_i[30:25], if_id_instr_i[24:21], if_id_instr_i[20]                                   };    end 
+        `S_TYPE  : begin immediate_r = { {21{if_id_instr_i[31]}}, if_id_instr_i[30:25], if_id_instr_i[11:8] , if_id_instr_i[7]                                    };    end 
+        `B_TYPE  : begin immediate_r = { {20{if_id_instr_i[31]}}, if_id_instr_i[7]    , if_id_instr_i[30:25], if_id_instr_i[11:8], {1{1'b0}}                      };    end 
+        `U_TYPE  : begin immediate_r = {     if_id_instr_i[31]  , if_id_instr_i[30:20], if_id_instr_i[19:12], {12{1'b0}}                                        };    end 
+        `J_TYPE  : begin immediate_r = { {12{if_id_instr_i[31]}}, if_id_instr_i[19:12], if_id_instr_i[20]   , if_id_instr_i[30:25], if_id_instr_i[24:21], {1{1'b0}} };    end 
         default  : begin immediate_r = 32'h0;                                                                                                                   end
     endcase
 end
 
-//
+// ID/EX Pipeline Register //
 
-assign id_ex_instr_o   = if_id_instr;
-assign id_ex_ctrl_o    = ctrl_signal_r;
-assign id_ex_rs1_o     = rs1_w;
-assign id_ex_rs2_o     = rs2_w;
-assign id_ex_imm_o     = immediate_r;
-assign id_ex_rd_addr_o = if_id_instr[11:7];
-assign id_ex_pc_o      = if_id_pc;
-assign id_ex_pcplus_o  = if_id_pcplus;
+always @(posedge clk_i) begin
+    if (rst_i) begin
+        id_ex_instr_o   <= `I_NOP               ;
+        id_ex_ctrl_o    <= `CONTROL_NOP         ;
+        id_ex_rs1_o     <= 32'b0                ;
+        id_ex_rs2_o     <= 32'b0                ;
+        id_ex_imm_o     <= 32'b0                ;
+        id_ex_rd_addr_o <= 5'b0                 ;
+        id_ex_pc_o      <= 32'b0                ;
+        id_ex_pcplus_o  <= 32'b0                ; 
+    end else begin
+        id_ex_instr_o   <= if_id_instr_i          ;
+        id_ex_ctrl_o    <= ctrl_signal_r        ;
+        id_ex_rs1_o     <= rs1_w                ;
+        id_ex_rs2_o     <= rs2_w                ;
+        id_ex_imm_o     <= immediate_r          ;
+        id_ex_rd_addr_o <= if_id_instr_i[11:7]    ;
+        id_ex_pc_o      <= if_id_pc_i             ;
+        id_ex_pcplus_o  <= if_id_pcplus_i         ;
+    end 
+end
     
 endmodule
