@@ -104,7 +104,7 @@ always @(posedge clk_i) begin
         ex_mem_instr_o      <= id_ex_instr_i    ;
         ex_mem_ctrl_o       <= id_ex_ctrl_i     ;
         ex_mem_alu_result_o <= alu_result_w     ;
-        ex_mem_rs2_o        <= alu_result_w     ;
+        ex_mem_rs2_o        <= id_ex_rs2_i      ;
         ex_mem_rd_addr_o    <= id_ex_rd_addr_i  ;
         ex_mem_pc_o         <= id_ex_pc_i       ;
         ex_mem_pcplus_o     <= id_ex_pcplus_i   ;

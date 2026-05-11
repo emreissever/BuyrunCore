@@ -6,3 +6,4 @@ rtl/core/mem_stage.v
 rtl/core/wb_stage.v
 rtl/core/alu.v
 rtl/core/base_regfile.v
+rtl/core/hazard_unit.v

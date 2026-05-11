@@ -13,6 +13,7 @@ module rv32i_core (
 wire [31:0] if_id_instr_w;
 wire [31:0] if_id_pc_w;
 wire [31:0] if_id_pcplus_w;
+wire        id_if_ready_w;
 
 // ID/EX
 wire [31:0]             id_ex_instr_w;
@@ -51,43 +52,57 @@ wire                    wb_id_rd_en_w;
 wire                    ex_if_br_taken_w;
 wire [31:0]             ex_if_br_addr_w;
 
+// Hazard Unit 
+wire [ 4:0]             id_hzd_rs1_addr_w;
+wire [ 4:0]             id_hzd_rs2_addr_w;
+wire                    id_hzd_rs1_used_w;
+wire                    id_hzd_rs2_used_w;
+wire                    hzd_id_stall_w   ;
+
 // IF Stage
 if_stage u_if_stage (
-    .clk_i           (clk_i),
-    .rst_i           (rst_i),
-    .imem_if_instr_i (imem_instr_i),
-    .if_imem_pc_o    (imem_pc_o),
+    .clk_i              (clk_i),
+    .rst_i              (rst_i),
+    .imem_if_instr_i    (imem_instr_i),
+    .if_imem_pc_o       (imem_pc_o),
 
-    .if_id_instr_o   (if_id_instr_w),
-    .if_id_pc_o      (if_id_pc_w),
-    .if_id_pcplus_o  (if_id_pcplus_w),
+    .if_id_instr_o      (if_id_instr_w),
+    .if_id_pc_o         (if_id_pc_w),
+    .if_id_pcplus_o     (if_id_pcplus_w),
+    .id_if_ready_i      (id_if_ready_w),
 
-    .ex_if_br_taken_i(ex_if_br_taken_w),
-    .ex_if_br_addr_i (ex_if_br_addr_w)
+    .ex_if_br_taken_i   (ex_if_br_taken_w),
+    .ex_if_br_addr_i    (ex_if_br_addr_w)
 );
 
 // ID Stage
 id_stage u_id_stage (
-    .clk_i          (clk_i),
-    .rst_i          (rst_i),
+    .clk_i              (clk_i),
+    .rst_i              (rst_i),
 
-    .if_id_instr_i  (if_id_instr_w),
-    .if_id_pc_i     (if_id_pc_w),
-    .if_id_pcplus_i (if_id_pcplus_w),
+    .if_id_instr_i      (if_id_instr_w),
+    .if_id_pc_i         (if_id_pc_w),
+    .if_id_pcplus_i     (if_id_pcplus_w),
+    .id_if_ready_o      (id_if_ready_w), 
 
-    .id_ex_instr_o   (id_ex_instr_w),
-    .id_ex_ctrl_o    (id_ex_ctrl_w),
-    .id_ex_rs1_o     (id_ex_rs1_w),
-    .id_ex_rs2_o     (id_ex_rs2_w),
-    .id_ex_imm_o     (id_ex_imm_w),
+    .id_ex_instr_o      (id_ex_instr_w),
+    .id_ex_ctrl_o       (id_ex_ctrl_w),
+    .id_ex_rs1_o        (id_ex_rs1_w),
+    .id_ex_rs2_o        (id_ex_rs2_w),
+    .id_ex_imm_o        (id_ex_imm_w),
 
-    .id_ex_rd_addr_o (id_ex_rd_addr_w),
-    .id_ex_pc_o      (id_ex_pc_w),
-    .id_ex_pcplus_o  (id_ex_pcplus_w),
+    .id_ex_rd_addr_o    (id_ex_rd_addr_w),
+    .id_ex_pc_o         (id_ex_pc_w),
+    .id_ex_pcplus_o     (id_ex_pcplus_w),
 
     .wb_id_rd_addr_i    (wb_id_rd_addr_w),
     .wb_id_rd_i         (wb_id_rd_w),
-    .wb_id_rd_en_i      (wb_id_rd_en_w)
+    .wb_id_rd_en_i      (wb_id_rd_en_w),
+    .id_hzd_rs1_addr_o  (id_hzd_rs1_addr_w),
+    .id_hzd_rs2_addr_o  (id_hzd_rs2_addr_w),
+    .id_hzd_rs1_used_o  (id_hzd_rs1_used_w),
+    .id_hzd_rs2_used_o  (id_hzd_rs2_used_w),
+    .hzd_id_stall_i     (hzd_id_stall_w)
 );
 
 // EX Stage
@@ -154,6 +169,18 @@ wb_stage u_wb_stage (
     .wb_id_rd_addr_o        (wb_id_rd_addr_w)       ,
     .wb_id_rd_o             (wb_id_rd_w)       ,
     .wb_id_rd_en_o          (wb_id_rd_en_w)
+);
+
+hazard_unit u_hazard_unit (
+    .id_hzd_rs1_addr_i       (id_hzd_rs1_addr_w),
+    .id_hzd_rs2_addr_i       (id_hzd_rs2_addr_w),
+    .id_hzd_rs1_used_i       (id_hzd_rs1_used_w),
+    .id_hzd_rs2_used_i       (id_hzd_rs2_used_w),
+    .ex_hzd_rd_addr_i        (id_ex_rd_addr_w),
+    .ex_hzd_reg_wr_en_i      (id_ex_ctrl_w[`REGEN]),
+    .mem_hzd_rd_addr_i       (ex_mem_rd_addr_w),
+    .mem_hzd_reg_wr_en_i     (ex_mem_ctrl_w[`REGEN]),
+    .stall_o                 (hzd_id_stall_w)
 );
 
 endmodule

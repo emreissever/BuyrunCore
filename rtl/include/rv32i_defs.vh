@@ -4,6 +4,7 @@
 `define I_NOP       32'h00000013   // ADDI x0, x0, 0
 
 // RV32I Instructions = 37 Instructions 
+// FENCE and SYSTEM Instructions are not supported now !! 
 
 `define I_ADD        32'b0000000_?????_?????_000_?????_0110011
 `define I_SUB        32'b0100000_?????_?????_000_?????_0110011
@@ -225,30 +226,32 @@
 `define CONTROL_JAL           {`OPERAND_PCIMM ,  `BRANCH_JAL  , `EXOP_ADD  , `MEMACC_NONE , `REGEN_WRITE    , `WB_PCPLUS   }
 `define CONTROL_JALR          {`OPERAND_IMM   ,  `BRANCH_JALR , `EXOP_ADD  , `MEMACC_NONE , `REGEN_WRITE    , `WB_PCPLUS   }
 
-// // Opcodes (instr[6:0])
+// Opcodes (instr[6:0])
 
-// // U-type
-// `define OPCODE_LUI      7'b0110111
-// `define OPCODE_AUIPC    7'b0010111
+// R-type
+`define OPCODE_OP       7'b0110011
 
-// // J-type / I-type (jumps)
-// `define OPCODE_JAL      7'b1101111
-// `define OPCODE_JALR     7'b1100111
+// I-type (ALU immediate)
+`define OPCODE_OP_IMM   7'b0010011
 
-// // B-type
-// `define OPCODE_BRANCH   7'b1100011
+// I-type (loads)
+`define OPCODE_LOAD     7'b0000011
 
-// // I-type (loads)
-// `define OPCODE_LOAD     7'b0000011
+// J-type / I-type (jumps)
+`define OPCODE_JAL      7'b1101111
+`define OPCODE_JALR     7'b1100111
 
-// // S-type
-// `define OPCODE_STORE    7'b0100011
+// U-type
+`define OPCODE_LUI      7'b0110111
+`define OPCODE_AUIPC    7'b0010111
 
-// // I-type (ALU immediate)
-// `define OPCODE_OP_IMM   7'b0010011
+// B-type
+`define OPCODE_BRANCH   7'b1100011
 
-// // R-type
-// `define OPCODE_OP       7'b0110011
+// S-type
+`define OPCODE_STORE    7'b0100011
+
+
 
 
 // // funct3 - OP / OP_IMM (instr[14:12])

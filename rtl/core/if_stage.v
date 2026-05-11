@@ -14,6 +14,7 @@ module if_stage #(
     output reg  [31:0]  if_id_instr_o       ,
     output reg  [31:0]  if_id_pc_o          ,
     output reg  [31:0]  if_id_pcplus_o      ,
+    input wire          id_if_ready_i       ,
 
     // From EX stage 
     input wire          ex_if_br_taken_i    ,
@@ -28,7 +29,7 @@ always @(posedge clk_i) begin
         pc_r <= BOOT_ADDR       ;
     end else if (ex_if_br_taken_i) begin
         pc_r <= ex_if_br_addr_i ; 
-    end else begin
+    end else if (id_if_ready_i) begin
         pc_r <= pcplus_w        ;
     end 
 end
@@ -46,7 +47,7 @@ always @(posedge clk_i) begin
         if_id_instr_o   <= `I_NOP           ;
         if_id_pc_o      <= ex_if_br_addr_i  ;
         if_id_pcplus_o  <= pcplus_w         ;
-    end else begin
+    end else if (id_if_ready_i) begin
         if_id_instr_o   <= imem_if_instr_i  ;
         if_id_pc_o      <= pc_r             ;
         if_id_pcplus_o  <= pcplus_w         ;

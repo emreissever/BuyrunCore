@@ -20,7 +20,7 @@ assign rs2_data_o = (rs2_addr_i == 5'b0) ? 32'b0 : regFile[rs2_addr_i];
 // Kept for early debug convenience.
 // Source : RISC-V ISA ABI
 integer i ; 
-always @(posedge clk_i) begin
+always @(negedge clk_i) begin
    if (rst_i) begin
       for (i = 0; i<32 ; i=i+1) begin
          regFile[i] <= 0 ;

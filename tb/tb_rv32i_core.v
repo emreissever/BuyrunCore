@@ -6,21 +6,16 @@ module tb_rv32i_core;
 reg         clk_i;
 reg         rst_i;
 
-reg  [31:0] imem_instr_i;
+wire [31:0] imem_instr_i;
 wire [31:0] imem_pc_o;
 
 integer cycle_count;
 
-// IMEM PLACEHOLDER
-always @(*) begin
-    case (imem_pc_o)
-        32'h0000_0000: imem_instr_i = 32'h00500093; // addi x1, x0, 5
-        32'h0000_0004: imem_instr_i = 32'h00102023; // sw x1, 0(x0)
-        32'h0000_0008: imem_instr_i = 32'h00002103; // lw x2, 0(x0)
-        32'h0000_000C: imem_instr_i = 32'h00000013; // nop
-        default:       imem_instr_i = `I_NOP;
-    endcase
-end
+// Instruction Memory Model (PLACEHOLDER)
+imem_model u_imem (
+    .addr_i  (imem_pc_o),
+    .instr_o (imem_instr_i)
+);
 
 // DUT
 rv32i_core dut (
@@ -113,11 +108,27 @@ endtask
 
 task print_stage_activity;
     begin
-        $display("      EX  : %-12s op1=%08h op2=%08h alu=%08h",
+        $display("      IF  : %-12s PC=%08h ID_READY:%01b", 
+            instr_name(dut.imem_instr_i),
+            dut.u_if_stage.pc_r,
+            dut.u_if_stage.id_if_ready_i
+        );
+
+        $display("      ID  : %-12s rs1_addr=%08h rs1_data=%08h rs2_addr=%08h rs2_data=%08h ID_READY=%08h", 
+            instr_name(dut.if_id_instr_w),
+            dut.u_id_stage.if_id_instr_i[19:15],
+            dut.u_id_stage.rs1_w,
+            dut.u_id_stage.if_id_instr_i[24:20],
+            dut.u_id_stage.rs2_w,
+            dut.u_id_stage.hzd_id_stall_i
+        );
+
+        $display("      EX  : %-12s op1=%08h op2=%08h alu=%08h, ctrl_operand=%08h",
             instr_name(dut.id_ex_instr_w),
             dut.u_ex_stage.operand1_r,
             dut.u_ex_stage.operand2_r,
-            dut.u_ex_stage.alu_result_w
+            dut.u_ex_stage.alu_result_w,
+            dut.u_ex_stage.id_ex_ctrl_i[`OPERAND]
         );
 
         $display("      MEM : %-12s en=%0b we=%0b addr=%08h wdata=%08h rdata=%08h",
@@ -155,7 +166,7 @@ endtask
 task show_dmem;
     integer i;
     begin
-        $display("========== DMEM [0:7] ==========");
+        $display("========== DATA MEMORY [0:7] ==========");
         for (i = 0; i < 8; i = i + 1) begin
             $display("dmem[%0d] = 0x%08h", i, dut.u_mem_stage.dmem[i]);
         end
@@ -175,7 +186,7 @@ initial begin
     repeat (2) @(posedge clk_i);
     rst_i = 1'b0;
 
-    repeat (10) @(posedge clk_i);
+    repeat (30) @(posedge clk_i);
 
     show_regfile();
     show_dmem();

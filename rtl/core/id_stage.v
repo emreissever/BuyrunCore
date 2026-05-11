@@ -4,23 +4,31 @@ module id_stage (
     input wire                      clk_i               ,
     input wire                      rst_i               ,
 
-    input wire [31:0]               if_id_instr_i       ,
-    input wire [31:0]               if_id_pc_i          ,
-    input wire [31:0]               if_id_pcplus_i      ,
+    input wire  [31:0]              if_id_instr_i       ,
+    input wire  [31:0]              if_id_pc_i          ,
+    input wire  [31:0]              if_id_pcplus_i      ,
+    output wire                     id_if_ready_o       ,
 
-    output reg [31:0]               id_ex_instr_o       ,
-    output reg [`CONTROL_BIT-1:0]   id_ex_ctrl_o        ,
-    output reg [31:0]               id_ex_rs1_o         ,
-    output reg [31:0]               id_ex_rs2_o         ,
-    output reg [31:0]               id_ex_imm_o         ,
+    output reg  [31:0]              id_ex_instr_o       ,
+    output reg  [`CONTROL_BIT-1:0]  id_ex_ctrl_o        ,
+    output reg  [31:0]              id_ex_rs1_o         ,
+    output reg  [31:0]              id_ex_rs2_o         ,
+    output reg  [31:0]              id_ex_imm_o         ,
 
-    output reg [ 4:0]               id_ex_rd_addr_o     ,
-    output reg [31:0]               id_ex_pc_o          ,
-    output reg [31:0]               id_ex_pcplus_o      ,
+    output reg  [ 4:0]              id_ex_rd_addr_o     ,
+    output reg  [31:0]              id_ex_pc_o          ,
+    output reg  [31:0]              id_ex_pcplus_o      ,
 
-    input wire [ 4:0]               wb_id_rd_addr_i     ,
-    input wire [31:0]               wb_id_rd_i          ,
-    input wire                      wb_id_rd_en_i       
+    input wire  [ 4:0]              wb_id_rd_addr_i     ,
+    input wire  [31:0]              wb_id_rd_i          ,
+    input wire                      wb_id_rd_en_i       ,
+
+    output wire [ 4:0]              id_hzd_rs1_addr_o   ,
+    output wire [ 4:0]              id_hzd_rs2_addr_o   ,
+    output wire                     id_hzd_rs1_used_o   ,
+    output wire                     id_hzd_rs2_used_o   ,
+
+    input wire                      hzd_id_stall_i        
 );
 
 wire    [`DECODE_INST_BIT-1:0]  decode_inst_w   ;
@@ -31,6 +39,9 @@ reg     [`CONTROL_BIT-1:0]      ctrl_signal_r   ;
 
 wire    [31:0]                  rs1_w           ;
 wire    [31:0]                  rs2_w           ;
+
+reg                             rs1_used_r      ;
+reg                             rs2_used_r      ;
 
 base_regfile u_regfile
 (
@@ -110,13 +121,48 @@ J (JALR) Type  = 11001
 
 always @(*) begin
     case (instr_type_r)
-        `I_TYPE  : begin immediate_r = { {21{if_id_instr_i[31]}}, if_id_instr_i[30:25], if_id_instr_i[24:21], if_id_instr_i[20]                                   };    end 
-        `S_TYPE  : begin immediate_r = { {21{if_id_instr_i[31]}}, if_id_instr_i[30:25], if_id_instr_i[11:8] , if_id_instr_i[7]                                    };    end 
-        `B_TYPE  : begin immediate_r = { {20{if_id_instr_i[31]}}, if_id_instr_i[7]    , if_id_instr_i[30:25], if_id_instr_i[11:8], {1{1'b0}}                      };    end 
-        `U_TYPE  : begin immediate_r = {     if_id_instr_i[31]  , if_id_instr_i[30:20], if_id_instr_i[19:12], {12{1'b0}}                                        };    end 
-        `J_TYPE  : begin immediate_r = { {12{if_id_instr_i[31]}}, if_id_instr_i[19:12], if_id_instr_i[20]   , if_id_instr_i[30:25], if_id_instr_i[24:21], {1{1'b0}} };    end 
-        default  : begin immediate_r = 32'h0;                                                                                                                   end
+        `I_TYPE  : begin immediate_r = { {21{if_id_instr_i[31]}}, if_id_instr_i[30:25], if_id_instr_i[24:21], if_id_instr_i[20]                                     };  end 
+        `S_TYPE  : begin immediate_r = { {21{if_id_instr_i[31]}}, if_id_instr_i[30:25], if_id_instr_i[11:8] , if_id_instr_i[7]                                      };  end 
+        `B_TYPE  : begin immediate_r = { {20{if_id_instr_i[31]}}, if_id_instr_i[7]    , if_id_instr_i[30:25], if_id_instr_i[11:8], {1{1'b0}}                        };  end 
+        `U_TYPE  : begin immediate_r = {     if_id_instr_i[31]  , if_id_instr_i[30:20], if_id_instr_i[19:12], {12{1'b0}}                                            };  end 
+        `J_TYPE  : begin immediate_r = { {12{if_id_instr_i[31]}}, if_id_instr_i[19:12], if_id_instr_i[20]   , if_id_instr_i[30:25], if_id_instr_i[24:21], {1{1'b0}} };  end 
+        default  : begin immediate_r = 32'h0;                                                                                                                           end
     endcase
+end
+
+// Determine rs1/rs2 usage for hazard detection
+
+always @(*) begin
+    case(if_id_instr_i[6:0])
+        `OPCODE_OP      : begin
+            rs1_used_r   = 1'b1 ;
+            rs2_used_r   = 1'b1 ; 
+        end
+        `OPCODE_OP_IMM  : begin
+            rs1_used_r   = 1'b1;
+            rs2_used_r   = 1'b0;
+        end
+        `OPCODE_LOAD    : begin
+            rs1_used_r   = 1'b1;
+            rs2_used_r   = 1'b0;
+        end
+        `OPCODE_BRANCH  : begin
+            rs1_used_r   = 1'b1;
+            rs2_used_r   = 1'b1;
+        end
+        `OPCODE_STORE   : begin
+            rs1_used_r   = 1'b1;
+            rs2_used_r   = 1'b1;
+        end
+        `OPCODE_JALR    : begin
+            rs1_used_r   = 1'b1;
+            rs2_used_r   = 1'b0;
+        end
+        default: begin
+            rs1_used_r   = 1'b0;
+            rs2_used_r   = 1'b0;
+        end 
+    endcase 
 end
 
 // ID/EX Pipeline Register //
@@ -131,16 +177,34 @@ always @(posedge clk_i) begin
         id_ex_rd_addr_o <= 5'b0                 ;
         id_ex_pc_o      <= 32'b0                ;
         id_ex_pcplus_o  <= 32'b0                ; 
+    end else if (hzd_id_stall_i) begin
+        id_ex_instr_o   <= `I_NOP               ;
+        id_ex_ctrl_o    <= `CONTROL_NOP         ;
+        id_ex_rs1_o     <= 32'b0                ;
+        id_ex_rs2_o     <= 32'b0                ;
+        id_ex_imm_o     <= 32'b0                ;
+        id_ex_rd_addr_o <= 5'b0                 ;
+        id_ex_pc_o      <= 32'b0                ;
+        id_ex_pcplus_o  <= 32'b0                ; 
     end else begin
-        id_ex_instr_o   <= if_id_instr_i          ;
+        id_ex_instr_o   <= if_id_instr_i        ;
         id_ex_ctrl_o    <= ctrl_signal_r        ;
         id_ex_rs1_o     <= rs1_w                ;
         id_ex_rs2_o     <= rs2_w                ;
         id_ex_imm_o     <= immediate_r          ;
-        id_ex_rd_addr_o <= if_id_instr_i[11:7]    ;
-        id_ex_pc_o      <= if_id_pc_i             ;
-        id_ex_pcplus_o  <= if_id_pcplus_i         ;
+        id_ex_rd_addr_o <= if_id_instr_i[11:7]  ;
+        id_ex_pc_o      <= if_id_pc_i           ;
+        id_ex_pcplus_o  <= if_id_pcplus_i       ;
     end 
 end
+
+assign id_if_ready_o = ~hzd_id_stall_i;
+
+// Hazard Unit Interface
+assign id_hzd_rs1_addr_o = if_id_instr_i[19:15] ;
+assign id_hzd_rs2_addr_o = if_id_instr_i[24:20] ; 
+
+assign id_hzd_rs1_used_o = rs1_used_r ;
+assign id_hzd_rs2_used_o = rs2_used_r ;
     
 endmodule

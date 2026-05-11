@@ -29,8 +29,8 @@ sim:
 	mkdir -p sim
 	$(VLIB) $(WORK_LIB)
 	cd sim && $(VMAP) work work
-	$(VLOG) $(VLOG_INCS) -work $(WORK_LIB) -f $(RTL_LIST) tb/$(TOP_TB).v
-
+	$(VLOG) $(VLOG_INCS) -work $(WORK_LIB) -f $(RTL_LIST) tb/*.v
+	
 run: sim
 	cd sim && $(VSIM) -c -voptargs=+acc work.$(TOP_TB) -do "run -all; quit"
 
